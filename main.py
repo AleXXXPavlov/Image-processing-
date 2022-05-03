@@ -1,16 +1,11 @@
 import argparse
 
 from correctness import check_correctness
-from recognizing import recognizing
+from recognition import recognition
 
 
 def parse_args() -> tuple:
     parser = argparse.ArgumentParser(description="Recognize text in image.")
-    parser.add_argument(
-        "text_line_drawer",
-        choices={"opencv", "tesseract"},
-        help="Image Processing Library"
-    )
     parser.add_argument(
         "input_file",
         type=str,
@@ -23,16 +18,16 @@ def parse_args() -> tuple:
     )
 
     args = parser.parse_args()
-    return args.input_file, args.output_file, args.text_line_drawer
+    return args.input_file, args.output_file
 
 
 if __name__ == "__main__":
     # parse args for recognizing
-    input_file, output_file, drawer = parse_args()
+    input_file, output_file = parse_args()
 
     # checking the correctness of the entered data
     check_res = check_correctness(input_file, output_file)
 
     if check_res:
         # recognizing data
-        recognizing(drawer, input_file, output_file)
+        recognition(input_file, output_file)
