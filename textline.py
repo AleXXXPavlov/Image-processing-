@@ -21,7 +21,7 @@ def parse_args() -> tuple:
     return args.input_file, args.output_file
 
 
-if __name__ == "__main__":
+def run():
     # parse args for recognizing
     input_file, output_file = parse_args()
 
@@ -31,3 +31,8 @@ if __name__ == "__main__":
     if check_res:
         # recognizing data
         recognition(input_file, output_file)
+
+
+if __name__ == "__main__":
+    run()
+    
