@@ -17,8 +17,8 @@ def improvement(img: Image) -> Image:
     new_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     # we achieve an average value less than 127
-    if np.mean(new_img) < DARK_BORDER:
-        img_gray = np.bitwise_not(new_img)
+    if np.mean(new_img) > DARK_BORDER:
+        new_img = np.bitwise_not(new_img)
 
     # contrast control
     contrast = 1.5
@@ -27,8 +27,14 @@ def improvement(img: Image) -> Image:
             new_img[h, w] = np.clip(new_img[h, w] * contrast, 0, 255)
 
     # Otsu's thresholding after Gaussian filtering
-    new_img = cv2.GaussianBlur(new_img, (3, 3), 0)
-    _, threshold_img = cv2.threshold(new_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # new_img = cv2.GaussianBlur(new_img, (3, 3), 0)
+    _, threshold_img = cv2.threshold(new_img, 250, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # dilate the text to make it solid spot
+    cpy = threshold_img.copy()
+    struct = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 10))
+    cpy = cv2.dilate(~cpy, struct, iterations=3)
+    threshold_img = ~cpy
 
     return threshold_img
 
@@ -57,20 +63,59 @@ def find_bounding_boxes(img: Image) -> list:
     return bounding_boxes
 
 
+def find_lines(boxes: list) -> tuple:
+    cols, rows = dict(), dict()
+    # group the bounding boxes by their positions
+    for box in boxes:
+        y = box[1]
+        row = y // THRESHOLD_CELL
+        rows[row] = rows[row] + [box] if row in rows else [box, ]
+
+    # create horizontal lines
+    horizontal_lines = []
+
+    rows = rows.values()
+    # sort by x-coord
+    rows = [sorted(row) for row in rows]
+    # sort by y-coord
+    rows = sorted(rows, key=lambda r: r[0][1])
+
+    for row in rows:
+        bottom = max([letter[3] + letter[1] for letter in row])
+        top = min([letter[1] for letter in row])
+
+        left, right = row[0][0], row[-1][0] + row[-1][2]
+        horizontal_lines.append((left, top, right, top))
+        horizontal_lines.append((left, bottom, right, bottom))
+
+    return horizontal_lines, []
+
+
 def recognition(input_file: str, output_file: str) -> None:
     input_img = cv2.imread(input_file)
-    img_with_markup = input_img.copy()
+    # img_with_markup = input_img.copy()
 
     # initial improvement
     threshold_img = improvement(input_img)
+    cv2.imwrite(output_file, threshold_img)
+    exit()
     # get bounding boxes
     bounding_boxes = find_bounding_boxes(threshold_img)
 
+    # create vertical and horizontal lines
+    lines = find_lines(bounding_boxes)
+
     # visualize the result
-    for box in bounding_boxes:
-        x, y, width, height = box
+    for same_lines in lines:
+        for line in same_lines:
+            x_l, y_l, x_r, y_r = line
+            cv2.line(img_with_markup, (x_l, y_l), (x_r, y_r), GREEN, THICKNESS)
+
+    # visualize the result
+    #for box in bounding_boxes:
+    #    x, y, width, height = box
 
         # draw a rectangle on image
-        cv2.rectangle(img_with_markup, (x-1, y-1), (x+width, y+height), GREEN, THICKNESS)
+    #    cv2.rectangle(img_with_markup, (x - 1, y - 1), (x + width, y + height), GREEN, THICKNESS)
 
     cv2.imwrite(output_file, img_with_markup)
